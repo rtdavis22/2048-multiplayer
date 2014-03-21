@@ -227,9 +227,13 @@ hr {
   margin-right: 15px;
   float: left;
   border-radius: 3px;
-  background: rgba(238, 228, 218, 0.35); }
+  background: rgba(238, 238, 218, 0.35); }
   .grid-cell:last-child {
     margin-right: 0; }
+
+.grid-cell-highlight {
+  background: rgba(238, 100, 218, 0.2);
+}
 
 .tile-container {
   position: absolute;
@@ -610,7 +614,7 @@ hr {
     margin-right: 10px;
     float: left;
     border-radius: 3px;
-    background: rgba(238, 228, 218, 0.35); }
+    background: rgba(238, 0, 0, 0.35); }
     .grid-cell:last-child {
       margin-right: 0; }
 

@@ -26,6 +26,14 @@ Grid.prototype.randomAvailableCell = function () {
   }
 };
 
+Grid.prototype.firstAvailableCell = function () {
+  var cells = this.availableCells();
+
+  if (cells.length) {
+    return cells[0];
+  }
+};
+
 Grid.prototype.availableCells = function () {
   var cells = [];
 

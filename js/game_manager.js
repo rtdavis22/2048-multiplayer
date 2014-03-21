@@ -4,14 +4,74 @@ function GameManager(size, InputManager, Actuator, ScoreManager) {
   this.scoreManager = new ScoreManager;
   this.actuator     = new Actuator;
 
+  this.gameId = 0;
   this.startTiles   = 2;
+  this.opponentMode = false;
 
-  this.inputManager.on("move", this.move.bind(this));
+  //this.inputManager.on("move", this.move.bind(this));
+  this.inputManager.on("move", this.requestMove.bind(this));
+
   this.inputManager.on("restart", this.restart.bind(this));
   this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
 
+  //this.inputManager.on("placeTile", this.placeTile.bind(this));
+  this.inputManager.on("placeTile", this.requestPlaceTile.bind(this));
+
+  this.socket = io.connect('http://ec2-54-186-69-0.us-west-2.compute.amazonaws.com:8092');
+
+  var that = this;
+
+  this.socket.on('move', function (direction, fn) {
+    fn(that.move(direction));
+  });
+
+  this.socket.on('placeTile', function() {
+    that.placeTile();
+  });
+
+  this.socket.on('player1_joined', function () {
+    alert('player 1 joined');
+  });
+
+  this.socket.on('player2_joined', function() {
+    alert('player 2 joined');
+  });
+
+  document.getElementById("newgame").onclick = function() {
+    that.newGame();
+  };
+
+  document.getElementById("player1").onclick = function() {
+    that.socket.emit("player1", that.gameId, function(res) {
+      if (res == 0) {
+        alert('u are player 1');
+      } else {
+        alert('player 1 taken');
+      }
+    });
+  };
+
+  document.getElementById("player2").onclick = function() {
+    that.socket.emit("player2", that.gameId, function(res) {
+      if (res == 0) {
+        alert('u are player 2');
+      } else {
+        alert('player 2 taken');
+      }
+    });
+  };
+
   this.setup();
 }
+
+GameManager.prototype.newGame = function() {
+  var that = this;
+
+  this.socket.emit('newgame', function(gameId) {
+    that.gameId = gameId;
+    alert(gameId);
+  });
+};
 
 // Restart the game
 GameManager.prototype.restart = function () {
@@ -43,7 +103,9 @@ GameManager.prototype.setup = function () {
   this.keepPlaying = false;
 
   // Add the initial tiles
-  this.addStartTiles();
+  //this.addStartTiles();
+
+  this.enterOpponentMode();
 
   // Update the actuator
   this.actuate();
@@ -99,10 +161,87 @@ GameManager.prototype.moveTile = function (tile, cell) {
   tile.updatePosition(cell);
 };
 
+GameManager.prototype.placeTile = function() {
+    var tile = new Tile(this.highlightedCell, 2);
+
+    this.grid.insertTile(tile);
+    //this.actuate();
+    this.actuator.addTile(tile);
+    this.leaveOpponentMode();
+};
+
+GameManager.prototype.requestMove = function(direction) {
+    this.socket.emit('requestMove', this.gameId, direction, function(res) {
+
+    });
+};
+
+GameManager.prototype.requestPlaceTile = function() {
+  this.socket.emit('requestPlaceTile', this.gameId, function(res) {
+
+  });
+};
+
 // Move tiles on the grid in the specified direction
 GameManager.prototype.move = function (direction) {
   // 0: up, 1: right, 2:down, 3: left
   var self = this;
+
+  if (this.opponentMode) {
+    x = this.highlightedCell.x;
+    y = this.highlightedCell.y;
+
+    if (direction == 0) {
+      while (true) {
+        y--;
+        if (y < 0) {
+            break;
+        }
+        cell = {x: x, y: y};
+        if (this.grid.cellAvailable(cell)) {
+          this.highlightCell({x: x, y: y});
+          break;
+        }
+      }
+    } else if (direction == 1) {
+      while (true) {
+        x++;
+        if (x > 3) {
+            break;
+        }
+        cell = {x: x, y: y};
+        if (this.grid.cellAvailable(cell)) {
+          this.highlightCell({x: x, y: y});
+          break;
+        }
+      }
+    } else if (direction == 2) {
+      while (true) {
+        y++;
+        if (y > 3) {
+          break;
+        }
+        cell = {x: x, y: y};
+        if (this.grid.cellAvailable(cell)) {
+          this.highlightCell({x: x, y: y});
+          break;
+        }
+      }
+    } else if (direction == 3) {
+      while (true) {
+        x--;
+        if (x < 0) {
+          break;
+        }
+        cell = {x: x, y: y};
+        if (this.grid.cellAvailable(cell)) {
+          this.highlightCell({x: x, y: y});
+          break;
+        }
+      }
+    }
+    return false;
+  }
 
   if (this.isGameTerminated()) return; // Don't do anything if the game's over
 
@@ -153,14 +292,60 @@ GameManager.prototype.move = function (direction) {
   });
 
   if (moved) {
-    this.addRandomTile();
-
-    if (!this.movesAvailable()) {
-      this.over = true; // Game over!
-    }
+    this.enterOpponentMode();
 
     this.actuate();
   }
+
+  return moved;
+};
+
+GameManager.prototype.enterOpponentMode = function() {
+    this.opponentMode = true;
+    var firstCell = this.grid.firstAvailableCell();
+    this.highlightCell(firstCell);
+};
+
+GameManager.prototype.unhighlight = function() {
+    x = this.highlightedCell.x + 1
+    y = this.highlightedCell.y + 1
+    document.getElementById("r" + y + "c" + x).classList.remove("grid-cell-highlight");
+};
+
+GameManager.prototype.leaveOpponentMode = function() {
+    this.unhighlight();
+    this.opponentMode = false;
+    if (!this.movesAvailable()) {
+      this.over = true;
+    }
+    //this.actuate();
+};
+
+// Adds a tile in a random position
+GameManager.prototype.addChosenTile = function () {
+  if (this.grid.cellsAvailable()) {
+    var value = Math.random() < 0.9 ? 2 : 4;
+
+    var availableCells = this.grid.availableCells();
+
+    var firstCell = this.grid.firstAvailableCell();
+    this.highlightCell(firstCell);
+    
+
+    //var tile = new Tile(this.grid.firstAvailableCell(), value);
+
+    this.grid.insertTile(tile);
+  }
+};
+
+GameManager.prototype.highlightCell = function(cell) {
+  if (this.highlightedCell) {
+    this.unhighlight();
+  }
+  this.highlightedCell = cell;
+  el = document.getElementById("r" + (cell.y + 1) + "c" + (cell.x + 1));
+  //el = document.getElementById("r2c2");
+  el.classList.add("grid-cell-highlight");
 };
 
 // Get the vector representing the chosen direction

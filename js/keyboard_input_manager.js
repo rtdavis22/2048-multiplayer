@@ -60,6 +60,11 @@ KeyboardInputManager.prototype.listen = function () {
         self.emit("move", mapped);
       }
 
+      if (event.which === 13) {
+        event.preventDefault();
+        self.emit("placeTile");
+      }
+
       if (event.which === 32) self.restart.bind(self)(event);
     }
   });

@@ -88,6 +88,8 @@ HTMLActuator.prototype.addTile = function (tile) {
     this.applyClasses(wrapper, classes);
   }
 
+  //classes.push('tile-highlight');
+
   // Add the inner part of the tile to the wrapper
   wrapper.appendChild(inner);
 
