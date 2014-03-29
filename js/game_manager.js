@@ -8,13 +8,11 @@ function GameManager(size, InputManager, Actuator, ScoreManager) {
   this.startTiles   = 2;
   this.opponentMode = false;
 
-  //this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("move", this.requestMove.bind(this));
 
   this.inputManager.on("restart", this.restart.bind(this));
   this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
 
-  //this.inputManager.on("placeTile", this.placeTile.bind(this));
   this.inputManager.on("placeTile", this.requestPlaceTile.bind(this));
 
   this.socket = io.connect('http://ec2-54-186-69-0.us-west-2.compute.amazonaws.com:8092');
@@ -102,9 +100,6 @@ GameManager.prototype.setup = function () {
   this.won         = false;
   this.keepPlaying = false;
 
-  // Add the initial tiles
-  //this.addStartTiles();
-
   this.enterOpponentMode();
 
   // Update the actuator
@@ -162,27 +157,23 @@ GameManager.prototype.moveTile = function (tile, cell) {
 };
 
 GameManager.prototype.placeTile = function() {
-    var tile = new Tile(this.highlightedCell, 2);
+  var tile = new Tile(this.highlightedCell, 2);
 
-    this.grid.insertTile(tile);
-    //this.actuate();
-    this.actuator.addTile(tile);
-    this.leaveOpponentMode();
+  this.grid.insertTile(tile);
+  this.actuator.addTile(tile);
+  this.leaveOpponentMode();
 };
 
 GameManager.prototype.requestMove = function(direction) {
-    this.socket.emit('requestMove', this.gameId, direction, function(res) {
-
-    });
+  this.socket.emit('requestMove', this.gameId, direction, function(res) {});
 };
 
 GameManager.prototype.requestPlaceTile = function() {
-  this.socket.emit('requestPlaceTile', this.gameId, function(res) {
-
-  });
+  this.socket.emit('requestPlaceTile', this.gameId, function(res) {});
 };
 
 // Move tiles on the grid in the specified direction
+// Returns true if the move constitutes a "turn" for the player.
 GameManager.prototype.move = function (direction) {
   // 0: up, 1: right, 2:down, 3: left
   var self = this;
@@ -301,38 +292,29 @@ GameManager.prototype.move = function (direction) {
 };
 
 GameManager.prototype.enterOpponentMode = function() {
-    this.opponentMode = true;
-    var firstCell = this.grid.firstAvailableCell();
-    this.highlightCell(firstCell);
+  this.opponentMode = true;
+  var firstCell = this.grid.firstAvailableCell();
+  this.highlightCell(firstCell);
 };
 
 GameManager.prototype.unhighlight = function() {
-    x = this.highlightedCell.x + 1
-    y = this.highlightedCell.y + 1
-    document.getElementById("r" + y + "c" + x).classList.remove("grid-cell-highlight");
+  var x = this.highlightedCell.x + 1;
+  var y = this.highlightedCell.y + 1;
+  document.getElementById("r" + y + "c" + x).classList.remove("grid-cell-highlight");
 };
 
 GameManager.prototype.leaveOpponentMode = function() {
-    this.unhighlight();
-    this.opponentMode = false;
-    if (!this.movesAvailable()) {
-      this.over = true;
-    }
-    //this.actuate();
+  this.unhighlight();
+  this.opponentMode = false;
+  if (!this.movesAvailable()) {
+    this.over = true;
+  }
 };
-
-// Adds a tile in a random position
-GameManager.prototype.addChosenTile = function () {
+	
+GameManager.prototype.addRandomTile = function () {
   if (this.grid.cellsAvailable()) {
     var value = Math.random() < 0.9 ? 2 : 4;
-
-    var availableCells = this.grid.availableCells();
-
-    var firstCell = this.grid.firstAvailableCell();
-    this.highlightCell(firstCell);
-    
-
-    //var tile = new Tile(this.grid.firstAvailableCell(), value);
+    var tile = new Tile(this.grid.randomAvailableCell(), value);
 
     this.grid.insertTile(tile);
   }
